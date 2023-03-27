@@ -23,7 +23,7 @@ function startApp() {
     res.end();
   });
 
-  server.listen(7000, "localhost", () => {
+  server.listen(7001, "localhost", () => {
     console.log("Server started on port 7000");
   });
 }

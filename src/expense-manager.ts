@@ -1,10 +1,10 @@
-import { Action, ActionParam } from "@razzledotai/sdk";
+import { Action, ActionParam, CallDetails, RazzleResponse } from "@razzledotai/sdk";
 import {
   RazzleColumn,
   RazzleContainer,
+  RazzleCustomTable,
   RazzleLink,
   RazzleList,
-  RazzleResponse,
   RazzleRow,
   RazzleTable,
   RazzleText,
@@ -16,47 +16,81 @@ export class ExpenseManagerModule {
   constructor(private readonly expenseManagerService: ExpenseManagerService) {}
 
   @Action({
-    name: "getCompanies",
-    description: "Get all companies",
+    name: 'getCompanies',
+    description: 'Get all companies',
+    paged: true,
   })
-  getCompanies(): RazzleResponse {
-    const companies = this.expenseManagerService.listCompanies();
+  getCompanies(callDetails: CallDetails) {
+    const pagination = callDetails.pagination
+    let companies = this.expenseManagerService.listCompanies()
+    const totalCount = companies.length
+    const { pageNumber, pageSize } = pagination || {
+      pageNumber: 1,
+      pageSize: 10,
+    }
+    companies = companies.slice(
+      (pageNumber - 1) * pageSize,
+      pageNumber * pageSize
+    )
+    const data: unknown[][] = companies.map((company) => [
+      ...Object.values(company),
+      '',
+      '',
+    ])
     return new RazzleResponse({
-      ui: new RazzleContainer({
-        padding: WidgetPadding.all(10),
-        title: "All Companies",
-        body: new RazzleColumn({
-          children: companies.map((company) => {
-            return new RazzleColumn({
-              crossAxisAlignment: "center",
-              children: [
-                new RazzleText({ text: company.name }),
-                new RazzleRow({
-                  spacing: 20,
-                  mainAxisAlignment: "center",
-                  children: [
-                    new RazzleLink({
-                      action: {
-                        action: "getCompany",
-                        label: "Manage",
-                        args: [company.id],
-                      },
-                    }),
-                    new RazzleLink({
-                      action: {
-                        action: "listCardsByCompany",
-                        label: "List cards",
-                        args: [company.id],
-                      },
-                    }),
-                  ],
-                }),
-              ],
-            });
-          }),
-        }),
+      pagination: {
+        pageNumber,
+        pageSize,
+        totalCount,
+      },
+      ui: new RazzleCustomTable({
+        columns: [
+          {
+            id: 'id',
+            header: 'ID',
+          },
+          {
+            id: 'name',
+            header: 'Name',
+            widthPct: 50,
+          },
+          {
+            id: 'actionManage',
+            header: '',
+          },
+          {
+            id: 'actionListCards',
+            header: '',
+          },
+        ],
+        data,
+        builder: (rowIdx: number, colId: string, value: unknown) => {
+          const company = companies[rowIdx]
+          switch (colId) {
+            case 'actionManage':
+              return new RazzleLink({
+                textSize: 'small',
+                action: {
+                  action: 'getCompany',
+                  label: 'Manage',
+                  args: [company.id],
+                },
+              })
+            case 'actionListCards':
+              return new RazzleLink({
+                textSize: 'small',
+                action: {
+                  action: 'listCardsByCompany',
+                  label: 'List cards',
+                  args: [company.id],
+                },
+              })
+            default:
+              return new RazzleText({ text: value as string })
+          }
+        },
       }),
-    });
+    })
   }
 
   @Action({
